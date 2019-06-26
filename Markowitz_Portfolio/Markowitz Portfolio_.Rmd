@@ -1,0 +1,105 @@
+---
+title: |
+  | 
+  | Markowitz Portfolio Selection
+author: "Veli Kisa"
+date: "12 June 2019"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+
+
+#Introduction
+
+Portfolio optimization with broad defination can be described as the process of selecting proportions of various assets to include in a portfolio. However, Markowitz portfolio model allows investors to construct a portfolio that gives the best risk/return trade off available.
+
+In this project, an optimal portfolio is created for 5 different stocks from 5 different sectors by Markowitz portfolio model.
+
+#Data
+
+Data set consists of 5-year, daily closing prices of 5 different stocks between May 2014 and May 2019. "AKBNK", "MGROS", "NETAS", "BJKAS" and "AKSEN" stocks belong to banking, market chain, telecommunication, sports club and energy sector respectively.
+
+```{r cars}
+require(readxl)
+akbnk<-read_excel("C:/Users/Veli/Documents/R/markowitz/Portfolio.project/AKBNK2.xlsx")
+aksen<-read_excel("C:/Users/Veli/Documents/R/markowitz/Portfolio.project/AKSEN2.xlsx")
+bjkas<-read_excel("C:/Users/Veli/Documents/R/markowitz/Portfolio.project/BJKAS2.xlsx")
+mgros<-read_excel("C:/Users/Veli/Documents/R/markowitz/Portfolio.project/MGROS2.xlsx")
+netas<-read_excel("C:/Users/Veli/Documents/R/markowitz/Portfolio.project/NETAS2.xlsx")
+stock_prices<-cbind(akbnk[,c(1,2)],aksen[,2],bjkas[,2],mgros[,2],netas[,2])
+colnames(stock_prices)<-c("Date","AKBNK","AKSEN","BJKAS","MGROS","NETAS")
+head(stock_prices)
+
+```
+
+```{r}
+require(tseries)
+require(timeSeries)
+stock_returns<-cbind.data.frame((stock_prices$Date[-1]),apply(stock_prices[,-1],2,function(x) diff(x)/head(x,-1)))
+head(stock_returns)
+stock_returns2 <- as.timeSeries(stock_returns)
+ 
+```
+Daily returns are calculated by taking into consideration the prices that changed according to the previous day.
+
+```{r}
+par(mfrow=c(3,2))
+plot(stock_prices$Date,stock_prices$AKBNK,type="l")
+plot(stock_prices$Date,stock_prices$AKSEN,type="l")
+plot(stock_prices$Date,stock_prices$BJKAS,type="l")
+plot(stock_prices$Date,stock_prices$MGROS,type="l")
+plot(stock_prices$Date,stock_prices$NETAS,type="l")
+
+```
+The graphs show the daily price changes of the stocks mentioned during the 5-year period.
+```{r}
+returns.portfolio<-stock_returns2
+meanReturns <- colMeans(returns.portfolio[,-1])
+covMat <- cov(returns.portfolio[,-1])
+meanReturns
+covMat
+```
+
+According to the average mean return vector, while the stock of _BJKAS_ has the most mean return, the stock of _AKSEN_ has the least mean return.
+
+When the sample covariance matrix is examined,diagonal elements imply the variance of stocks,and the off diagonal elements mean covariances between all possible pairs of stocks.
+
+When the stock of _MGROS_ has the minimum variance as the least risky stock, the stock of _BJKAS_ has the maximum variance as the most risky stock.
+The optimal portfolio is not dependent of the initial weights of stocks.
+
+#Constraints
+
+```{r}
+require(PortfolioAnalytics)
+p <- portfolio.spec(assets = colnames(returns.portfolio))
+p
+```
+Markowitz Optimization requires minimizing the variance of returns and maximizing returns of stocks.
+
+```{r}
+p <- add.objective(portfolio = p, type = "risk", name = "var")
+p <- add.constraint(portfolio = p, type = "full_investment")
+```
+
+In financial literature, _the full investment part_  sets a constraint on the sum of the portfolio weights such that they always sum up to 1. This shows how much the investor cares about importance to the risk of the portfolio. Therefore, the optimization model returns portfolio weights that achieve the lowest possible portfolio variance. An additional constraint may be added to the optimization model.
+
+```{r}
+p <- add.constraint(portfolio=p, type = "return",     return_target= 0.0005)
+
+```
+The return target is set to approximately 0.0005, which represents the total return average.
+
+#Modelling and Conclusion
+
+```{r}
+require(ROI)
+require(ROI.plugin.quadprog)
+require(ROI.plugin.glpk)
+optimize.portfolio(R=returns.portfolio, portfolio = p, 
+          optimize_method = "ROI", trace = TRUE)
+```
+
+The optimal weights of stocks (AKBNK,AKSEN,BJKAS,MGROS,NETAS) under specified conditions are 0.2032, 0.3492, 0.1041, 0.2414, 0.1022 respectively.
+
